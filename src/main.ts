@@ -12,11 +12,26 @@ await Actor.exit();
 
 async function run(): Promise<void> {
     const input = (await Actor.getInput<ActorInput>()) ?? ({} as ActorInput);
-    const { views = ['apertura_proxima', 'ultimos_30_dias', 'adjudicados'], fetchFullDetail = false, maxItems = 200 } = input;
+    const {
+        views = ['apertura_proxima', 'ultimos_30_dias', 'adjudicados'],
+        fetchFullDetail = false,
+        maxItems = 200,
+        proxyConfiguration: proxyConfigurationInput,
+    } = input;
+
+    // Verified live on Apify's cloud infrastructure (2026-09-04): without a
+    // proxy, every request to pbac.cgp.gba.gov.ar timed out at 30s across
+    // 4 retries - 0/1 succeeded. Identical requests from outside Apify's
+    // cloud IP ranges succeeded in 1-2s every time during development.
+    // That gap points at the site blocking Apify's datacenter IPs
+    // specifically, so a proxy is not optional here the way it was for
+    // primer-actor.
+    const proxyConfiguration = await Actor.createProxyConfiguration(proxyConfigurationInput);
 
     let failedCount = 0;
 
     const crawler = new CheerioCrawler({
+        proxyConfiguration,
         maxRequestRetries: 4,
         requestHandlerTimeoutSecs: 60,
         retryOnBlocked: true,

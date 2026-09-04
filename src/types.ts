@@ -4,6 +4,7 @@ export interface ActorInput {
     views: ViewName[];
     fetchFullDetail: boolean;
     maxItems: number;
+    proxyConfiguration?: Record<string, unknown>;
 }
 
 export interface TenderRow {

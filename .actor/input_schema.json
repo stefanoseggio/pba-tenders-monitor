@@ -29,6 +29,13 @@
             "description": "Hard cap on the number of tender processes returned this run, across all selected views.",
             "default": 200,
             "minimum": 1
+        },
+        "proxyConfiguration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Required in practice: pbac.cgp.gba.gov.ar times out on every request from Apify's cloud IP ranges without a proxy (verified live). Apify Proxy (datacenter) is the default and sufficient.",
+            "prefill": { "useApifyProxy": true },
+            "editor": "proxy"
         }
     }
 }
