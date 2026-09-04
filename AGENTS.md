@@ -68,3 +68,30 @@ runs on every local `npm test` and is genuinely useful there. Don't
 re-enable it in CI without first checking whether this was transient
 network flakiness or an actual block on GitHub's IP ranges from this
 .gov.ar host.
+
+## CRITICAL: PBAC blocks non-residential-Argentina traffic (verified 2026-09-04)
+
+Both no proxy and default Apify Proxy (datacenter) time out at 30s across
+4 retries on every request to pbac.cgp.gba.gov.ar from Apify's cloud
+infrastructure - 0 successes across two separate cloud runs. Only
+Residential proxy with `countryCode: 'AR'` succeeded (3.5s, 3/3 rows).
+This is a geo/traffic-type block, not something specific to Apify's own
+IP ranges - a datacenter proxy from any other provider would very likely
+fail the same way.
+
+Consequence: `src/main.ts` hardcodes `{ groups: ['RESIDENTIAL'],
+countryCode: 'AR' }` as the fallback whenever the caller doesn't pass
+`proxyConfiguration` explicitly. The input schema's `prefill` on that
+field only seeds the Console form - it does nothing for an API/CLI
+caller who omits the field, so the code-level default is what actually
+matters. Do not "simplify" this back to plain `Actor.createProxyConfiguration()`
+with no argument; that reintroduces the exact failure mode this section
+documents.
+
+Cost consequence: residential proxy runs ~$7-8/GB vs. datacenter being
+effectively free on this plan. Pages here are ~50-90KB, so proxy cost is
+roughly $0.35-0.70 per 1,000 requests - real but small. Factored into
+the $1.50/1,000 pricing already proposed; margin is thinner than
+primer-actor's but still positive. Re-verify this ratio before raising
+`maxItems` defaults much higher, since proxy cost scales with pages
+fetched, not with dataset items returned.

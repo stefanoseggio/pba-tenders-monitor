@@ -33,8 +33,8 @@
         "proxyConfiguration": {
             "title": "Proxy configuration",
             "type": "object",
-            "description": "Required in practice: pbac.cgp.gba.gov.ar times out on every request from Apify's cloud IP ranges without a proxy (verified live). Apify Proxy (datacenter) is the default and sufficient.",
-            "prefill": { "useApifyProxy": true },
+            "description": "Required: pbac.cgp.gba.gov.ar blocks non-residential-Argentina traffic. Verified live - datacenter proxy (any provider) times out identically to no proxy at all; only Residential + Argentina succeeds. Defaults to that; do not switch to datacenter.",
+            "prefill": { "useApifyProxy": true, "apifyProxyGroups": ["RESIDENTIAL"], "apifyProxyCountry": "AR" },
             "editor": "proxy"
         }
     }

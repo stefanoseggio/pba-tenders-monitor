@@ -19,14 +19,20 @@ async function run(): Promise<void> {
         proxyConfiguration: proxyConfigurationInput,
     } = input;
 
-    // Verified live on Apify's cloud infrastructure (2026-09-04): without a
-    // proxy, every request to pbac.cgp.gba.gov.ar timed out at 30s across
-    // 4 retries - 0/1 succeeded. Identical requests from outside Apify's
-    // cloud IP ranges succeeded in 1-2s every time during development.
-    // That gap points at the site blocking Apify's datacenter IPs
-    // specifically, so a proxy is not optional here the way it was for
-    // primer-actor.
-    const proxyConfiguration = await Actor.createProxyConfiguration(proxyConfigurationInput);
+    // Verified live on Apify's cloud infrastructure (2026-09-04), twice:
+    // both no proxy and default (datacenter) Apify Proxy timed out at 30s
+    // across 4 retries every time - 0 successes in either case. Only
+    // Residential + Argentina succeeded (3.5s, 3/3 rows). This points at
+    // the site geo/type-blocking non-residential-Argentina traffic, not
+    // merely "Apify's IPs" - datacenter proxies from other providers would
+    // very likely fail the same way. The input schema's "prefill" only
+    // seeds the Console form; it does nothing for a caller who invokes
+    // this Actor via API/CLI without passing proxyConfiguration at all -
+    // so the real code default has to be residential+AR too, or every
+    // such caller gets the same silent 30s-timeout failure this run did.
+    const proxyConfiguration = await Actor.createProxyConfiguration(
+        proxyConfigurationInput ?? { groups: ['RESIDENTIAL'], countryCode: 'AR' },
+    );
 
     let failedCount = 0;
 

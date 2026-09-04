@@ -47,6 +47,8 @@ One item per tender process:
 
 PBAC server-renders all three grids directly in the homepage HTML - no login, no JavaScript, no browser needed to read them. Each row's "Numero de proceso" link is an ASP.NET postback (`__doPostBack`), not a plain URL; `fetchFullDetail` simulates that postback with plain HTTP (extract `__VIEWSTATE`/`__VIEWSTATEGENERATOR` from the loaded page, POST them back with the target control id) rather than requiring a browser. This was verified against the live site, not assumed.
 
+PBAC blocks non-residential-Argentina traffic - confirmed live: both no proxy and standard datacenter proxy time out on every request from Apify's cloud infrastructure, while Residential proxy with country set to Argentina succeeds every time. The Actor defaults to that automatically; leave the proxy field alone unless you know what you're changing.
+
 ## Known limitations
 
 - **`fetchFullDetail` is thin today.** The postback mechanism works - it returns 200 with genuinely new content - but the text captured is a short status label ("Proceso de publicacion PBAC"), not the substantive clause/document text. The response embeds nested ASP.NET UpdatePanels, so the real content likely sits in a deeper container not yet mapped. This is disclosed here rather than shipped silently; the summary grids (the actor's core value) are unaffected.
