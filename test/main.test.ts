@@ -9,7 +9,15 @@ import { router } from '../src/routes.js';
 // guarantee; a failure here may mean PBAC is down or changed markup, not
 // necessarily that this code is broken. The offline parser unit tests
 // are the ones that must never depend on network availability.
-describe('CheerioCrawler router against the live PBAC portal', () => {
+//
+// Skipped in CI (verified live, 2026-09-04): GitHub Actions' runner IP
+// range timed out reaching this specific .gov.ar host at 30s, on the
+// very first push, while every offline test passed. Whether that's
+// rate-limiting, a geo/network block, or just latency, the actor's own
+// production runs go through Apify's infrastructure, not GitHub's - a
+// red CI check here would be permanent noise unrelated to code
+// correctness. Still runs on every local/manual `npm test`.
+describe.skipIf(process.env.CI)('CheerioCrawler router against the live PBAC portal', () => {
     beforeAll(async () => {
         await purgeDefaultStorages();
     });
