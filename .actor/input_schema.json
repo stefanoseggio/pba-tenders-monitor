@@ -1,0 +1,34 @@
+{
+    "$schema": "https://apify.com/schemas/v1/input.ide.json",
+    "title": "PBA Tenders Monitor Configuration",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "views": {
+            "title": "Views to extract",
+            "type": "array",
+            "description": "Which PBAC grids to extract. Defaults to all three.",
+            "editor": "select",
+            "items": {
+                "type": "string",
+                "enum": ["apertura_proxima", "ultimos_30_dias", "adjudicados"],
+                "enumTitles": ["Upcoming openings", "Tenders from the last 30 days", "Awarded processes"]
+            },
+            "default": ["apertura_proxima", "ultimos_30_dias", "adjudicados"],
+            "minItems": 1
+        },
+        "fetchFullDetail": {
+            "title": "Fetch full detail per process",
+            "type": "boolean",
+            "description": "When enabled, simulates the postback for each process. Known limitation: this currently returns only a short status label, not the full Pliego document text - that content lives in a nested panel not yet mapped. Leave off until this is resolved; it adds cost with limited extra value today.",
+            "default": false
+        },
+        "maxItems": {
+            "title": "Max processes to extract",
+            "type": "integer",
+            "description": "Hard cap on the number of tender processes returned this run, across all selected views.",
+            "default": 200,
+            "minimum": 1
+        }
+    }
+}

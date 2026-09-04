@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "actorSpecification": 1,
+    "title": "Dataset Schema",
+    "fields": {
+        "type": "object",
+        "properties": {
+            "numeroProceso": { "title": "Numero de proceso", "type": "string", "description": "PBAC process number, e.g. 2026-338-99-265" },
+            "descripcion": { "title": "Descripcion", "type": "string", "description": "Short description of the tender" },
+            "tipoProcedimiento": { "title": "Tipo de procedimiento", "type": "string", "description": "Licitacion Publica, Licitacion Privada, or Procedimiento Abreviado" },
+            "fechaApertura": { "title": "Fecha de apertura", "type": "string", "description": "Opening date and time as shown by PBAC" },
+            "estado": { "title": "Estado", "type": "string", "description": "Publicado, En Apertura, En Evaluacion, Disponible Para Adjudicar, etc." },
+            "organismo": { "title": "Organismo", "type": "string", "description": "Contracting unit/agency" },
+            "vistaOrigen": { "title": "Vista origen", "type": "string", "description": "Which PBAC grid this row came from: apertura_proxima, ultimos_30_dias or adjudicados" },
+            "detalleCompleto": { "title": "Detalle completo", "type": ["object", "null"], "description": "Full document preview text, only populated when fetchFullDetail is enabled" },
+            "scrapedAt": { "title": "Scraped at", "type": "string", "description": "ISO timestamp of extraction" }
+        }
+    },
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "transformation": {
+                "fields": ["numeroProceso", "descripcion", "tipoProcedimiento", "fechaApertura", "estado", "organismo"]
+            },
+            "display": {
+                "component": "table",
+                "columns": [
+                    { "label": "Numero", "format": "text", "field": "numeroProceso" },
+                    { "label": "Descripcion", "format": "text", "field": "descripcion" },
+                    { "label": "Tipo", "format": "text", "field": "tipoProcedimiento" },
+                    { "label": "Apertura", "format": "text", "field": "fechaApertura" },
+                    { "label": "Estado", "format": "text", "field": "estado" },
+                    { "label": "Organismo", "format": "text", "field": "organismo" }
+                ]
+            }
+        }
+    }
+}
