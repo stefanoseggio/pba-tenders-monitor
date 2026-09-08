@@ -36,6 +36,32 @@
             "description": "Required: pbac.cgp.gba.gov.ar blocks non-residential-Argentina traffic. Verified live - datacenter proxy (any provider) times out identically to no proxy at all; only Residential + Argentina succeeds. Defaults to that; do not switch to datacenter.",
             "prefill": { "useApifyProxy": true, "apifyProxyGroups": ["RESIDENTIAL"], "apifyProxyCountry": "AR" },
             "editor": "proxy"
+        },
+        "onlyNew": {
+            "title": "Only new records (delta mode)",
+            "type": "boolean",
+            "description": "For recurring/scheduled runs: return only tenders that are new, changed vistaOrigen/estado, amended or closed since a prior run of this actor (tracked in a named key-value store scoped to this actor). CLOSED (a tender no longer in any of the 3 grids) is only ever computed when 'Views to extract' covers all 3 default views - a narrower selection makes this run's fetch a subset of the site, so CLOSED is skipped (and logged) in that case.",
+            "default": false
+        },
+        "eventTypes": {
+            "title": "Event types to deliver",
+            "type": "array",
+            "description": "Which kinds of change to deliver when 'Only new records' is on (ignored, everything delivered, when it is off). NEW_LISTING = never seen before. STATUS_CHANGE = vistaOrigen or estado changed - e.g. a tender moving from upcoming to awarded. UPDATED = same vistaOrigen/estado, a field changed. CLOSED = no longer listed in any of the 3 grids (only computed on an unfiltered 'Views to extract').",
+            "editor": "select",
+            "items": {
+                "type": "string",
+                "enum": ["NEW_LISTING", "STATUS_CHANGE", "UPDATED", "CLOSED"],
+                "enumTitles": ["NEW_LISTING - never seen before", "STATUS_CHANGE - vistaOrigen/estado changed", "UPDATED - a field changed", "CLOSED - no longer listed"]
+            },
+            "default": ["NEW_LISTING", "STATUS_CHANGE", "UPDATED", "CLOSED"]
+        },
+        "dateRange": {
+            "title": "Filter by opening date (Fecha de apertura)",
+            "type": "string",
+            "description": "Restricts results to tenders whose fechaApertura falls within this window ending now. Independent of onlyNew. Note: fechaApertura is WHEN BIDS OPEN, not when the tender was published - for the 'Upcoming openings' view specifically that date is routinely in the future, so this filter will not match those rows (see AGENTS.md/README).",
+            "editor": "select",
+            "enum": ["24h", "7d", "30d"],
+            "enumTitles": ["Last 24 hours", "Last 7 days", "Last 30 days"]
         }
     }
 }

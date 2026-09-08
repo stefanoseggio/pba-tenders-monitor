@@ -1,10 +1,14 @@
 import { Actor, log } from 'apify';
 import { CheerioCrawler } from 'crawlee';
 
-import { router } from './routes.js';
-import type { ActorInput } from './types.js';
+import { findClosed } from './delta.js';
+import { configureDelta, getFetchedIdsThisRun, getObservedThisRun, router } from './routes.js';
+import { loadState, mergeEntries, saveState } from './state.js';
+import type { ActorInput, ViewName } from './types.js';
 
 const PBAC_URL = 'https://pbac.cgp.gba.gov.ar/';
+const EVENT_SUMMARY = 'result-summary';
+const ALL_VIEWS: ViewName[] = ['apertura_proxima', 'ultimos_30_dias', 'adjudicados'];
 
 await Actor.init();
 await run();
@@ -13,10 +17,13 @@ await Actor.exit();
 async function run(): Promise<void> {
     const input = (await Actor.getInput<ActorInput>()) ?? ({} as ActorInput);
     const {
-        views = ['apertura_proxima', 'ultimos_30_dias', 'adjudicados'],
+        views = ALL_VIEWS,
         fetchFullDetail = false,
         maxItems = 200,
         proxyConfiguration: proxyConfigurationInput,
+        onlyNew = false,
+        eventTypes,
+        dateRange,
     } = input;
 
     // Verified live on Apify's cloud infrastructure (2026-09-04), twice:
@@ -33,6 +40,11 @@ async function run(): Promise<void> {
     const proxyConfiguration = await Actor.createProxyConfiguration(
         proxyConfigurationInput ?? { groups: ['RESIDENTIAL'], countryCode: 'AR' },
     );
+
+    const now = new Date();
+    const scrapedAt = now.toISOString();
+    const state = await loadState();
+    configureDelta({ state, onlyNew, eventTypes, dateRange, now });
 
     let failedCount = 0;
 
@@ -65,7 +77,44 @@ async function run(): Promise<void> {
         },
     ]);
 
+    // CLOSED is only safe to compute when `views` covers the site's default 3 grids - a
+    // narrower views filter makes this run's fetch a SUBSET of the site, the exact
+    // false-positive risk already found and fixed on entrerios-compras-monitor (there, a
+    // filtered query; here, a narrowed views list). Unlike the fleet's paginated actors, PBAC's
+    // homepage renders every row of every requested grid in one response - there is no
+    // maxItems-driven pagination truncation to additionally gate on (maxItems only trims what
+    // gets PUSHED, in routes.ts, never what's fetched) - see AGENTS.md "Delta engine v2".
+    const isFullSiteQuery = ALL_VIEWS.every((v) => views.includes(v)) && views.length === ALL_VIEWS.length;
+    const closedAllowed = !eventTypes || eventTypes.includes('CLOSED');
+    let closedCount = 0;
+    if (isFullSiteQuery && closedAllowed) {
+        const closed = findClosed(state, getFetchedIdsThisRun(), scrapedAt, PBAC_URL);
+        const pushedClosedIds: string[] = [];
+        for (const record of closed) {
+            const { eventChargeLimitReached } = await Actor.pushData(record, EVENT_SUMMARY);
+            closedCount += 1;
+            pushedClosedIds.push(record.record_id);
+            if (eventChargeLimitReached) {
+                log.info('Charge limit reached while pushing CLOSED records - stopping.');
+                break;
+            }
+        }
+        if (pushedClosedIds.length > 0) {
+            const withoutClosed = { ...state.entries };
+            for (const id of pushedClosedIds) delete withoutClosed[id];
+            state.entries = withoutClosed;
+        }
+    } else if (Object.keys(state.entries).length > 0) {
+        log.info(
+            `Skipping CLOSED detection this run: views does not cover all 3 default grids, so this fetch is not a complete census of the site. Run with the default views to enable it.`,
+        );
+    }
+
+    const nextEntries = mergeEntries(state.entries, getObservedThisRun());
+    await saveState(nextEntries, scrapedAt);
+
     if (failedCount > 0) {
         log.warning(`Terminado con ${failedCount} request(s) fallidos permanentemente. Ver registros con campo "error" en el dataset.`);
     }
+    log.info(`Delta state saved: ${getObservedThisRun().length} record(s) observed, ${closedCount} CLOSED.`);
 }

@@ -13,7 +13,18 @@
             "organismo": { "title": "Organismo", "type": "string", "description": "Contracting unit/agency" },
             "vistaOrigen": { "title": "Vista origen", "type": "string", "description": "Which PBAC grid this row came from: apertura_proxima, ultimos_30_dias or adjudicados" },
             "detalleCompleto": { "title": "Detalle completo", "type": ["object", "null"], "description": "Full document preview text, only populated when fetchFullDetail is enabled" },
-            "scrapedAt": { "title": "Scraped at", "type": "string", "description": "ISO timestamp of extraction" }
+            "scrapedAt": { "title": "Scraped at", "type": "string", "description": "ISO timestamp of extraction" },
+            "record_id": { "title": "Record ID", "type": "string", "description": "Same value as numeroProceso" },
+            "event_type": {
+                "title": "Event Type",
+                "type": "string",
+                "description": "NEW_LISTING (never seen before), STATUS_CHANGE (vistaOrigen or estado changed), UPDATED (a field changed), UNCHANGED (only when Only new records is off) or CLOSED (no longer in any of the 3 grids)."
+            },
+            "previousVistaOrigen": { "title": "Previous Vista Origen", "type": ["string", "null"], "description": "Set only when event_type=STATUS_CHANGE and vistaOrigen changed." },
+            "previousEstado": { "title": "Previous Estado", "type": ["string", "null"], "description": "Set only when event_type=STATUS_CHANGE and estado changed." },
+            "is_new": { "title": "Is New", "type": "boolean", "description": "True if this id was not in the persisted seen-set when this run started." },
+            "source_url": { "title": "Source URL", "type": "string", "description": "The PBAC homepage - this portal has no per-tender deep link." },
+            "contentHash": { "title": "Content Hash", "type": "string", "description": "sha1 fingerprint used to detect UPDATED between runs." }
         }
     },
     "views": {
@@ -31,6 +42,25 @@
                     { "label": "Apertura", "format": "text", "field": "fechaApertura" },
                     { "label": "Estado", "format": "text", "field": "estado" },
                     { "label": "Organismo", "format": "text", "field": "organismo" }
+                ]
+            }
+        },
+        "changes": {
+            "title": "Status changes & closures",
+            "transformation": {
+                "fields": ["record_id", "event_type", "previousVistaOrigen", "previousEstado", "vistaOrigen", "estado", "organismo", "scrapedAt"]
+            },
+            "display": {
+                "component": "table",
+                "columns": [
+                    { "label": "Numero", "format": "text", "field": "record_id" },
+                    { "label": "Evento", "format": "text", "field": "event_type" },
+                    { "label": "Vista anterior", "format": "text", "field": "previousVistaOrigen" },
+                    { "label": "Estado anterior", "format": "text", "field": "previousEstado" },
+                    { "label": "Vista actual", "format": "text", "field": "vistaOrigen" },
+                    { "label": "Estado actual", "format": "text", "field": "estado" },
+                    { "label": "Organismo", "format": "text", "field": "organismo" },
+                    { "label": "Detectado", "format": "date", "field": "scrapedAt" }
                 ]
             }
         }

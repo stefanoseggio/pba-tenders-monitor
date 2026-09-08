@@ -1,7 +1,8 @@
+import { Actor } from 'apify';
 import { CheerioCrawler, purgeDefaultStorages } from 'crawlee';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { router } from '../src/routes.js';
+import { configureDelta, router } from '../src/routes.js';
 
 // Live integration test against the real PBAC portal - the same tradeoff
 // the actor makes in production. Unlike example.com (used in similar
@@ -20,9 +21,24 @@ import { router } from '../src/routes.js';
 describe.skipIf(process.env.CI)('CheerioCrawler router against the live PBAC portal', () => {
     beforeAll(async () => {
         await purgeDefaultStorages();
+        // pushData(item, eventName) - used by src/routes.ts to charge the correct PPE event
+        // without a separate, double-charge-risking Actor.charge() call (see
+        // salta-compras-monitor's AGENTS.md for the real bug that pattern avoids) - requires
+        // the ChargingManager, which only exists after Actor.init(). main.ts always calls this
+        // before crawler.run() in production; this test must too, unlike the pre-delta-engine
+        // version of this test, which called the router directly without an Actor lifecycle.
+        await Actor.init();
+    });
+
+    afterAll(async () => {
+        // { exit: false }: Actor.exit() calls process.exit() by default, which would kill the
+        // vitest worker process itself - fine in the real actor runtime, not in a test.
+        await Actor.exit({ exit: false });
     });
 
     it('parses at least one real tender row from the live homepage', async () => {
+        configureDelta({ state: { entries: {}, lastRunAt: '' }, onlyNew: false, now: new Date() });
+
         const crawler = new CheerioCrawler({
             maxRequestRetries: 2,
             requestHandler: router,

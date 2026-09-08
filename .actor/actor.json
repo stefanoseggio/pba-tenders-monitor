@@ -2,9 +2,9 @@
     "$schema": "https://apify.com/schemas/v1/actor.ide.json",
     "actorSpecification": 1,
     "name": "pba-tenders-monitor",
-    "title": "PBA Tenders Monitor",
+    "title": "PBA Tenders Scraper & Monitor",
     "description": "Extracts public tender listings from PBAC, the official procurement portal of Buenos Aires Province, Argentina: upcoming openings, tenders from the last 30 days, and awarded processes, with optional full-detail enrichment.",
-    "version": "1.0",
+    "version": "2.0",
     "buildTag": "latest",
     "minMemoryMbytes": 256,
     "maxMemoryMbytes": 512,
@@ -17,5 +17,6 @@
     "storages": {
         "dataset": "./dataset_schema.json"
     },
+    "changelog": "../CHANGELOG.md",
     "dockerfile": "../Dockerfile"
 }

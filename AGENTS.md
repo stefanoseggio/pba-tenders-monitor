@@ -88,6 +88,83 @@ matters. Do not "simplify" this back to plain `Actor.createProxyConfiguration()`
 with no argument; that reintroduces the exact failure mode this section
 documents.
 
+## Delta engine v2 (2026-09-08)
+
+Unlike every other actor in this fleet, PBA never got the 2026-09-06 delta
+retrofit pass - this is the first delta engine it has ever had, built
+directly to the v2 standard (STATUS_CHANGE/UPDATED/CLOSED) rather than a
+v1-then-v2 sequence. New files: `src/state.ts`, `src/fingerprint.ts`,
+`src/delta.ts`. `src/parsers/*` are untouched.
+
+- **Three grids, three "vistas", one real lifecycle signal.** PBAC's
+  `estado` column genuinely varies within a grid (the dataset schema
+  already listed real observed values: "Publicado, En Apertura, En
+  Evaluacion, Disponible Para Adjudicar" - unlike, say,
+  cordoba-compras-monitor's single constant "EN PROCESO"). But the
+  clearest domain-level transition is a tender moving between GRIDS
+  (`apertura_proxima` -> `adjudicados` = "this tender was awarded"), so
+  `vistaOrigen` is tracked and compared exactly like `estado` - either
+  differing produces `STATUS_CHANGE`, with `previousVistaOrigen`/
+  `previousEstado` set to whichever one actually changed.
+- **CLOSED gated on `views` covering all 3 default grids - not on
+  maxItems, unlike every other actor with CLOSED.** PBAC's homepage
+  server-renders every row of every requested grid in ONE response - there
+  is no pagination for the summary grids at all, so `maxItems` only trims
+  what gets pushed (in `src/routes.ts`), never what's fetched. The one
+  real completeness risk here is the `views` INPUT ITSELF: a caller
+  requesting fewer than all 3 default views makes the fetch a genuine
+  subset of the site - the exact false-positive risk already found and
+  fixed on entrerios-compras-monitor (there, a search-form filter; here,
+  the views selector). `src/main.ts`'s `isFullSiteQuery` check mirrors
+  `entrerios-compras-monitor`'s `isUnfilteredInput()` directly.
+- **Disclosed, unverified**: whether PBAC's own grids are internally
+  capped (e.g., "show only the most recent N rows") was never confirmed
+  live either way - the only fixture available is a small reconstructed
+  2-row sample, not a full real capture. If the site does cap a grid
+  internally, CLOSED could still misfire even with all 3 views requested.
+  Re-verify against a real full page capture before trusting CLOSED
+  heavily in production; not done in this pass due to the residential
+  proxy's real per-request cost.
+- **`ultimos_30_dias` is a genuinely rolling time window** - a tender can
+  age out of THAT grid alone with nothing having actually happened to it.
+  CLOSED only means "absent from all 3 grids", never "removed from one
+  specific view" - disclosed in the EventType doc comment, README and
+  input schema, not conflated with a real status change.
+- **Module-scope delta context in `src/routes.ts`** (`configureDelta`/
+  `getObservedThisRun`/`getFetchedIdsThisRun`), set once by `main.ts`
+  before `crawler.run()`. Necessary because Crawlee's `router` is a
+  shared singleton with no access to `run()`'s own locals - safe here
+  since this is a single-process-per-run Actor (no concurrent runs
+  sharing one Node process). Every other actor in this fleet uses plain
+  `fetch()` with no such indirection; this one is Crawlee-based (the only
+  one in the fleet, alongside primer-actor) so the wiring looks different
+  even though the classify/CLOSED logic itself is the same shape.
+- **Pricing**: two-tier - `result` $0.003 for NEW_LISTING/STATUS_CHANGE/
+  UPDATED (regardless of `fetchFullDetail` - the detail postback is
+  disclosed as not-yet-useful, see "Known limitation" above, so charging
+  more for it would be dishonest) / `result-summary` $0.001 for CLOSED
+  (a derived absence signal, nothing fetched). `Actor.pushData(record,
+  eventName)` performs the charge itself - verified against the installed
+  SDK's `.d.ts` before writing this, per the double-charge bug caught on
+  salta-compras-monitor. This surfaced a real test-environment gap while
+  wiring it up: `test/main.test.ts` instantiated a bare `CheerioCrawler`
+  and called the router directly, without ever calling `Actor.init()` -
+  harmless under the OLD `Actor.charge()` call, but `pushData(item,
+  eventName)` throws "ChargingManager is not initialized" without it.
+  Fixed by adding real `Actor.init()`/`Actor.exit({exit:false})` calls to
+  the test (the `{exit:false}` matters - `Actor.exit()` calls
+  `process.exit()` by default, which would kill the test runner itself).
+- **`isWithinDateRange` needed the same fix Mendoza already needed, not
+  Cordoba's version** - caught by this file's own test, not assumed:
+  `fechaApertura` can be a FUTURE date (apertura_proxima rows), so a bare
+  `now - date <= window` lets every future-dated row match every preset
+  (a negative diff is always <= a positive window). Fixed with the
+  `diffMs >= 0` guard mendoza-compras-monitor's dateFilter.ts already
+  carries - copied that version, not cordoba-compras-monitor's (whose
+  own date field is genuinely backward-looking and never needed the guard).
+- New `onlyNew`/`eventTypes`/`dateRange` inputs, matching the fleet
+  convention.
+
 Cost consequence: residential proxy runs ~$7-8/GB vs. datacenter being
 effectively free on this plan. Pages here are ~50-90KB, so proxy cost is
 roughly $0.35-0.70 per 1,000 requests - real but small. Factored into
