@@ -1,22 +1,25 @@
 {
-    "$schema": "https://apify.com/schemas/v1/actor.ide.json",
-    "actorSpecification": 1,
-    "name": "pba-tenders-monitor",
-    "title": "PBA Tenders Scraper & Monitor",
-    "description": "Extracts public tender listings from PBAC, the official procurement portal of Buenos Aires Province, Argentina: upcoming openings, tenders from the last 30 days, and awarded processes, with optional full-detail enrichment.",
-    "version": "2.0",
-    "buildTag": "latest",
-    "minMemoryMbytes": 256,
-    "maxMemoryMbytes": 512,
-    "meta": {
-        "templateId": "ts-crawlee-cheerio",
-        "generatedBy": "Claude Code with Claude Sonnet 5"
-    },
-    "inputSchema": "./input_schema.json",
-    "outputSchema": "./output_schema.json",
-    "storages": {
-        "dataset": "./dataset_schema.json"
-    },
-    "changelog": "../CHANGELOG.md",
-    "dockerfile": "../Dockerfile"
+  "$schema": "https://apify.com/schemas/v1/actor.ide.json",
+  "actorSpecification": 1,
+  "name": "pba-tenders-monitor",
+  "title": "PBAC Buenos Aires Province - Tender Delta JSON Feed",
+  "description": "PBAC is the official public tender portal for Buenos Aires Province, Argentina, not the city of Buenos Aires (CABA) or national procurement. Extracts upcoming openings, last-30-day tenders, and awarded processes, with delta mode flagging new listings, status changes, amendments, and closures.",
+  "version": "2.0",
+  "buildTag": "latest",
+  "minMemoryMbytes": 256,
+  "maxMemoryMbytes": 512,
+  "meta": {
+    "templateId": "ts-crawlee-cheerio",
+    "generatedBy": "Claude Code with Claude Sonnet 5"
+  },
+  "inputSchema": "./input_schema.json",
+  "outputSchema": "./output_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "changelog": "../CHANGELOG.md",
+  "dockerfile": "../Dockerfile",
+  "categories": [
+    "BUSINESS"
+  ]
 }
