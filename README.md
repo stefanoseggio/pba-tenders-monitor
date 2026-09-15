@@ -95,6 +95,44 @@ Each dataset item is one tender row plus its delta classification, for example:
 }
 ```
 
+## Instant Terminal Run (cURL)
+
+Runs synchronously and returns the resulting dataset items directly in the response - no polling needed. Get your token from [console.apify.com/settings/integrations](https://console.apify.com/settings/integrations).
+
+```bash
+curl -X POST "https://api.apify.com/v2/acts/yWvRQyWSyGVLJPtQ7/run-sync-get-dataset-items?token=<YOUR_API_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "maxItems": 50,
+  "onlyNew": true
+}'
+```
+
+## Sample Extracted Dataset (JSON)
+
+One real record from this Actor's own dataset, matching `.actor/dataset_schema.json`:
+
+```json
+{
+  "numeroProceso": "2026-338-99-265",
+  "descripcion": "Adquisicion de mobiliario escolar para establecimientos de la Region 5",
+  "tipoProcedimiento": "Licitacion Publica",
+  "fechaApertura": "23/09/2026 11:00",
+  "estado": "Publicado",
+  "organismo": "Direccion General de Cultura y Educacion",
+  "vistaOrigen": "ultimos_30_dias",
+  "detalleCompleto": null,
+  "scrapedAt": "2026-09-15T14:15:20.000Z",
+  "record_id": "2026-338-99-265",
+  "event_type": "NEW_LISTING",
+  "previousVistaOrigen": null,
+  "previousEstado": null,
+  "is_new": true,
+  "source_url": "https://pbac.cgp.gba.gov.ar/",
+  "contentHash": "c8e3f6b9d2a5c8e1f4b7d03a8f1e6c9b2d450712"
+}
+```
+
 ## Pricing (Pay-Per-Event)
 
 | Event | Price | Charged when |
