@@ -2,7 +2,7 @@
 
 # PBAC Buenos Aires Province — Tender Delta JSON Feed
 
-**A Buenos Aires Province (PBAC) public tenders monitor for Argentina — upcoming openings, recent listings, and awarded processes, delivered as a delta feed of only what changed.**
+**A Buenos Aires Province (PBAC) public tenders monitor for Argentina — upcoming openings, recent listings, and awarded processes, delivered as a delta feed of only what changed, on whatever Apify schedule you configure.**
 
 [![Built for Apify](https://img.shields.io/badge/Built%20for-Apify-00A98F?logo=apify&logoColor=white)](https://apify.com)
 [![Pay-Per-Event](https://img.shields.io/badge/Pay--Per--Event-from%20%240.001-blue)](https://apify.com/stefano_seggio/pba-tenders-monitor)
@@ -60,10 +60,25 @@ PBAC server-renders all three grids directly in the homepage HTML — no login a
 | Residential Argentina proxy by default | `proxyConfiguration` prefills Residential + `AR`, required because PBAC blocks non-residential, non-Argentina traffic |
 | Standardized B2B envelope | Every record carries `record_id`, `event_type`, `previousVistaOrigen`, `previousEstado`, `is_new`, `source_url`, and `contentHash` alongside the raw PBAC fields |
 
-## Quick start
+## Cost & BYOK Disclosure
+
+**No third-party key required.** This Actor needs nothing beyond your Apify account (and its own prewired Residential + Argentina proxy configuration) — there is no BYOK requirement and no separate PBAC credential involved.
+
+| Event | Price | Charged when |
+| --- | --- | --- |
+| `result` | **$0.003** per record | `NEW_LISTING`, `STATUS_CHANGE`, or `UPDATED` |
+| `result-summary` | **$0.001** per record | `CLOSED` — a derived absence signal, nothing fetched |
+
+Precise figures live on the [Apify Store listing](https://apify.com/stefano_seggio/pba-tenders-monitor) pricing tab, which is the pricing source of truth for this Actor — the table above lists the two real event names and what triggers them.
+
+**Unchanged records are never billed.** Every extracted row is fingerprinted with a sha1 `contentHash` plus its `vistaOrigen`/`estado` pair and compared against the last-known state in a named key-value store; a row whose `contentHash`, `vistaOrigen` and `estado` all still match what this Actor delivered on a previous run is classified `UNCHANGED` and is suppressed before delivery — it never reaches the dataset and is never charged. The underlying page fetch itself is never charged either — only genuinely new information is billed, and a `CLOSED` detection costs a third of a full record because it's inferred from absence rather than newly extracted. A daily monitor finding a handful of changes across all three grids runs to roughly a few cents a day; `fetchFullDetail` does not add a separate charge, since that enrichment is disclosed below as not yet substantively useful and charging more for it would not be honest.
+
+## Quickstart
+
+Also runnable from the [Apify Console](https://console.apify.com/actors/yWvRQyWSyGVLJPtQ7) or the [Apify CLI](https://docs.apify.com/cli):
 
 ```bash
-apify call pba-tenders-monitor --input '{
+apify call stefano_seggio/pba-tenders-monitor --input '{
   "views": ["apertura_proxima", "ultimos_30_dias", "adjudicados"],
   "onlyNew": true,
   "eventTypes": ["NEW_LISTING", "STATUS_CHANGE", "CLOSED"],
@@ -95,7 +110,7 @@ Each dataset item is one tender row plus its delta classification, for example:
 }
 ```
 
-## Instant Terminal Run (cURL)
+### cURL (instant terminal run)
 
 Runs synchronously and returns the resulting dataset items directly in the response - no polling needed. Get your token from [console.apify.com/settings/integrations](https://console.apify.com/settings/integrations).
 
@@ -108,7 +123,113 @@ curl -X POST "https://api.apify.com/v2/acts/yWvRQyWSyGVLJPtQ7/run-sync-get-datas
 }'
 ```
 
-## Sample Extracted Dataset (JSON)
+### Python (`apify_client`)
+
+```python
+# run_monitor.py
+# Calls the PBAC Buenos Aires Province Tenders Monitor actor and prints the
+# resulting new/changed/closed tender records.
+import os
+
+from apify_client import ApifyClient
+
+client = ApifyClient(os.environ["APIFY_TOKEN"])  # set this in your shell before running
+
+run_input = {
+    "views": ["apertura_proxima", "ultimos_30_dias", "adjudicados"],
+    "onlyNew": True,
+    "eventTypes": ["NEW_LISTING", "STATUS_CHANGE", "CLOSED"],
+    "maxItems": 200,
+    "proxyConfiguration": {
+        "useApifyProxy": True,
+        "apifyProxyGroups": ["RESIDENTIAL"],
+        "apifyProxyCountry": "AR",
+    },
+}
+
+# Runs the actor and waits for it to finish before returning
+run = client.actor("stefano_seggio/pba-tenders-monitor").call(run_input=run_input)
+
+print(f"Run finished with status: {run['status']}")
+
+# Pull the records the run pushed to its default dataset
+dataset_items = client.dataset(run["defaultDatasetId"]).list_items().items
+print(f"Retrieved {len(dataset_items)} tender record(s)")
+
+for item in dataset_items:
+    event = item["event_type"]
+    numero = item["numeroProceso"]
+    descripcion = item["descripcion"]
+    estado = item["estado"]
+    print(f"[{event}] {numero} - {descripcion} ({estado})")
+```
+
+A full, runnable copy of this script lives at [`examples/run_monitor.py`](examples/run_monitor.py).
+
+### Node.js (`apify-client`)
+
+```js
+// run-monitor.js
+// Calls the PBAC Buenos Aires Province Tenders Monitor actor and logs the
+// resulting new/changed/closed tender records.
+const { ApifyClient } = require('apify-client');
+
+const client = new ApifyClient({
+    token: process.env.APIFY_TOKEN, // set this in your shell before running
+});
+
+async function main() {
+    const input = {
+        views: ['apertura_proxima', 'ultimos_30_dias', 'adjudicados'],
+        onlyNew: true,
+        eventTypes: ['NEW_LISTING', 'STATUS_CHANGE', 'CLOSED'],
+        maxItems: 200,
+        proxyConfiguration: {
+            useApifyProxy: true,
+            apifyProxyGroups: ['RESIDENTIAL'],
+            apifyProxyCountry: 'AR',
+        },
+    };
+
+    // Runs the actor and waits for it to finish before returning
+    const run = await client.actor('stefano_seggio/pba-tenders-monitor').call(input);
+
+    // Pull the records the run pushed to its default dataset
+    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+    console.log(`Run finished with status: ${run.status}`);
+    console.log(`Retrieved ${items.length} tender record(s)`);
+
+    for (const item of items) {
+        console.log(`[${item.event_type}] ${item.numeroProceso} - ${item.descripcion} (${item.estado})`);
+    }
+}
+
+main().catch((err) => {
+    console.error('Run failed:', err.message);
+    process.exit(1);
+});
+```
+
+A full, runnable copy of this script lives at [`examples/run-monitor.js`](examples/run-monitor.js).
+
+## Input & Output Schema
+
+### Input
+
+Field definitions come straight from [`.actor/input_schema.json`](./.actor/input_schema.json).
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `views` | string[] | all three | Which PBAC grids to extract: `apertura_proxima` (upcoming openings), `ultimos_30_dias` (last 30 days), `adjudicados` (awarded). |
+| `fetchFullDetail` | boolean | `false` | Simulates the per-process postback. Known limitation: currently returns only a short status label, not the full Pliego document text - see Known limitations below. |
+| `maxItems` | integer | `200` | Hard cap on the number of tender processes returned this run, across all selected views. |
+| `proxyConfiguration` | object | Residential + `AR` | Required: PBAC blocks non-residential, non-Argentina traffic. Verified live - a datacenter proxy times out identically to no proxy at all. Do not switch to datacenter. |
+| `onlyNew` | boolean | `false` | Delta mode: return only tenders that are new, changed `vistaOrigen`/`estado`, amended or closed since a prior run (tracked in a named key-value store). `CLOSED` is only computed when `views` covers all 3 default views. |
+| `eventTypes` | string[] | all four | Which kinds of change to deliver when `onlyNew` is on (ignored when it's off): `NEW_LISTING`, `STATUS_CHANGE`, `UPDATED`, `CLOSED`. |
+| `dateRange` | string (enum) | - | `24h` / `7d` / `30d` - restricts results by `fechaApertura`. Independent of `onlyNew`. Note: `fechaApertura` is routinely a future date for `apertura_proxima` rows, so this filter will not match those rows. |
+
+### Output
 
 One real record from this Actor's own dataset, matching `.actor/dataset_schema.json`:
 
@@ -133,14 +254,23 @@ One real record from this Actor's own dataset, matching `.actor/dataset_schema.j
 }
 ```
 
-## Pricing (Pay-Per-Event)
-
-| Event | Price | Charged when |
-| --- | --- | --- |
-| `result` | **$0.003** per record | `NEW_LISTING`, `STATUS_CHANGE`, or `UPDATED` |
-| `result-summary` | **$0.001** per record | `CLOSED` — a derived absence signal, nothing fetched |
-
-`UNCHANGED` rows and the underlying page fetch itself are never charged — only genuinely new information is billed, and a `CLOSED` detection costs a third of a full record because it's inferred from absence rather than newly extracted. A daily monitor finding a handful of changes across all three grids runs to roughly a few cents a day; `fetchFullDetail` does not add a separate charge, since that enrichment is disclosed below as not yet substantively useful and charging more for it would not be honest.
+| Field | Description |
+| --- | --- |
+| `numeroProceso` | PBAC process number, e.g. `2026-338-99-265`. |
+| `descripcion` | Short description of the tender. |
+| `tipoProcedimiento` | `Licitacion Publica`, `Licitacion Privada`, or `Procedimiento Abreviado`. |
+| `fechaApertura` | Opening date and time as shown by PBAC. |
+| `estado` | `Publicado`, `En Apertura`, `En Evaluacion`, `Disponible Para Adjudicar`, etc. |
+| `organismo` | Contracting unit/agency. |
+| `vistaOrigen` | Which PBAC grid this row came from: `apertura_proxima`, `ultimos_30_dias`, or `adjudicados`. |
+| `detalleCompleto` | Full document preview text, only populated when `fetchFullDetail` is enabled (see Known limitations). |
+| `scrapedAt` | ISO timestamp of extraction. |
+| `record_id` | Same value as `numeroProceso`. |
+| `event_type` | `NEW_LISTING`, `STATUS_CHANGE`, `UPDATED`, `UNCHANGED` (only when `onlyNew` is off), or `CLOSED`. |
+| `previousVistaOrigen` / `previousEstado` | Set only when `event_type=STATUS_CHANGE` and that field changed. |
+| `is_new` | `true` if this id was not in the persisted seen-set when this run started. |
+| `source_url` | The PBAC homepage - this portal has no per-tender deep link. |
+| `contentHash` | sha1 fingerprint used to detect `UPDATED` between runs. |
 
 ## Why not just scrape it yourself
 
@@ -156,6 +286,37 @@ One real record from this Actor's own dataset, matching `.actor/dataset_schema.j
 - `dateRange` filters on `fechaApertura` (scheduled opening date), which is routinely a future date for `apertura_proxima` rows — it will not match those rows.
 - Whether PBAC's own grids are internally capped (e.g. showing only the most recent N rows) has not been independently re-verified against a full live capture.
 - Requires a Residential + Argentina proxy, handled automatically by the default `proxyConfiguration` — do not switch this to a datacenter proxy.
+- **No contractual support SLA.** This Actor is built and maintained by an independent developer; bug reports and feature requests go through the Apify Store's Issues tab and are typically addressed within about 48 hours.
+
+## Contributing & Local Setup
+
+This repository contains the Actor's real, buildable TypeScript source (`src/`) — there is no proprietary logic held back from GitHub. To work on it locally:
+
+```bash
+git clone https://github.com/stefanoseggio/pba-tenders-monitor.git
+cd pba-tenders-monitor
+npm install
+
+# Run against the real pbac.cgp.gba.gov.ar portal, Apify-CLI style:
+apify login          # one-time, needs an Apify account
+apify run             # runs src/main.ts via the Apify SDK's local dev flow
+
+# Or run the TypeScript entrypoint directly:
+npm run start:dev     # tsx src/main.ts
+
+# Build, lint and test before opening a PR:
+npm run build          # tsc
+npm run lint
+npm test               # vitest run (mocked fixtures)
+```
+
+Source layout: `src/main.ts` (Actor entrypoint), `src/routes.ts` (Crawlee route handlers for the three PBAC grids), `src/parsers/` (Cheerio HTML parsing per grid), `src/delta.ts` (event classification: `NEW_LISTING`/`STATUS_CHANGE`/`UPDATED`/`CLOSED`), `src/fingerprint.ts` (sha1 `contentHash`), `src/dateFilter.ts` (`dateRange` filtering), `src/state.ts` (named key-value delta store), `src/types.ts` (shared types). Real unit tests live in `test/` with fixture-based coverage for parsing, delta classification and the Actor entrypoint.
+
+Bug reports and feature requests are handled through the Apify Store **Issues** tab for this Actor (see Known limitations above) rather than GitHub Issues, since that is where paying users of the published Actor already are — but pull requests against this repository are welcome.
+
+## License
+
+The source code in this repository is licensed under the [Apache License 2.0](LICENSE).
 
 ---
 
