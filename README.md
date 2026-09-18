@@ -128,8 +128,8 @@ curl -X POST "https://api.apify.com/v2/acts/yWvRQyWSyGVLJPtQ7/run-sync-get-datas
 
 ```python
 # run_monitor.py
-# Calls the PBAC Buenos Aires Province Tenders Monitor actor and prints the
-# resulting new/changed/closed tender records.
+# Calls the PBAC Buenos Aires Province Tenders Monitor actor (yWvRQyWSyGVLJPtQ7)
+# and prints the resulting new/changed/closed tender records.
 import os
 
 from apify_client import ApifyClient
@@ -149,7 +149,7 @@ run_input = {
 }
 
 # Runs the actor and waits for it to finish before returning
-run = client.actor("stefano_seggio/pba-tenders-monitor").call(run_input=run_input)
+run = client.actor("yWvRQyWSyGVLJPtQ7").call(run_input=run_input)
 
 print(f"Run finished with status: {run['status']}")
 
@@ -171,8 +171,8 @@ A full, runnable copy of this script lives at [`examples/run_monitor.py`](exampl
 
 ```js
 // run-monitor.js
-// Calls the PBAC Buenos Aires Province Tenders Monitor actor and logs the
-// resulting new/changed/closed tender records.
+// Calls the PBAC Buenos Aires Province Tenders Monitor actor (yWvRQyWSyGVLJPtQ7)
+// and logs the resulting new/changed/closed tender records.
 const { ApifyClient } = require('apify-client');
 
 const client = new ApifyClient({
@@ -193,7 +193,7 @@ async function main() {
     };
 
     // Runs the actor and waits for it to finish before returning
-    const run = await client.actor('stefano_seggio/pba-tenders-monitor').call(input);
+    const run = await client.actor('yWvRQyWSyGVLJPtQ7').call(input);
 
     // Pull the records the run pushed to its default dataset
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
