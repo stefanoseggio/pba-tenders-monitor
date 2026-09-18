@@ -68,8 +68,9 @@ PBAC server-renders all three grids directly in the homepage HTML — no login a
 | --- | --- | --- |
 | `result` | **$0.003** per record | `NEW_LISTING`, `STATUS_CHANGE`, or `UPDATED` |
 | `result-summary` | **$0.001** per record | `CLOSED` — a derived absence signal, nothing fetched |
+| Actor start | **$0.00005** | Once per run |
 
-Precise figures live on the [Apify Store listing](https://apify.com/stefano_seggio/pba-tenders-monitor) pricing tab, which is the pricing source of truth for this Actor — the table above lists the two real event names and what triggers them.
+Precise figures live on the [Apify Store listing](https://apify.com/stefano_seggio/pba-tenders-monitor) pricing tab, which is the pricing source of truth for this Actor — the table above lists the real event names and what triggers them. Residential proxy bandwidth is billed separately through your own Apify plan's proxy/data-transfer usage, not through the per-event prices above.
 
 **Unchanged records are never billed.** Every extracted row is fingerprinted with a sha1 `contentHash` plus its `vistaOrigen`/`estado` pair and compared against the last-known state in a named key-value store; a row whose `contentHash`, `vistaOrigen` and `estado` all still match what this Actor delivered on a previous run is classified `UNCHANGED` and is suppressed before delivery — it never reaches the dataset and is never charged. The underlying page fetch itself is never charged either — only genuinely new information is billed, and a `CLOSED` detection costs a third of a full record because it's inferred from absence rather than newly extracted. A daily monitor finding a handful of changes across all three grids runs to roughly a few cents a day; `fetchFullDetail` does not add a separate charge, since that enrichment is disclosed below as not yet substantively useful and charging more for it would not be honest.
 
