@@ -57,7 +57,15 @@ export function getRenderedGridsThisRun(): ReadonlySet<ViewName> {
 }
 
 function toEntry(row: TenderRow, hash: string): SeenEntry {
-    return { vistaOrigen: row.vistaOrigen, estado: row.estado, hash, descripcion: row.descripcion, organismo: row.organismo };
+    return {
+        vistaOrigen: row.vistaOrigen,
+        estado: row.estado,
+        hash,
+        descripcion: row.descripcion,
+        organismo: row.organismo,
+        tipoProcedimiento: row.tipoProcedimiento,
+        fechaApertura: row.fechaApertura,
+    };
 }
 
 function buildRecord(row: TenderRow, c: Omit<Classified, 'row'>, scrapedAt: string, detalleCompleto: TenderRecord['detalleCompleto']): TenderRecord {

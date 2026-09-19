@@ -13,6 +13,37 @@ const GRID_IDS: Record<ViewName, string> = {
     adjudicados: 'ctl00_CPH1_CtrlTablasPortal_gridPliegosAdjudicados',
 };
 
+/**
+ * Per-view column layout. `apertura_proxima` and `ultimos_30_dias` share PBAC's normal 6-column
+ * shape (Número de Proceso, Nombre de Proceso, Tipo de Proceso, Fecha de Apertura, Estado,
+ * Unidad Ejecutora). `adjudicados` genuinely renders only 4 - re-verified against a live fetch
+ * of https://pbac.cgp.gba.gov.ar/ on 2026-09-19, whose `gridPliegosAdjudicados` header row reads
+ * exactly: "Número de Proceso", "Nombre de Proceso", "Tipo de Proceso", "Unidad Ejecutora" - no
+ * Fecha de Apertura/Estado columns at all. Before this per-view schema existed, parseGrid()
+ * applied the 6-column shape (and its `cells.length < 6` guard) to every view, which silently
+ * discarded every real adjudicados row (an awarded tender then read as CLOSED - vanished from
+ * every grid - instead of the real STATUS_CHANGE it is).
+ *
+ * `fechaApertura`/`estado` are `null` for a view whose grid has no such column; parseGrid() then
+ * fills that TenderRow field with '' rather than guessing.
+ */
+interface GridColumnSchema {
+    /** Minimum real <td> count for a row to be real data, not PBAC's own header row or its
+     *  single-`<td colspan>` "No se encontraron resultados" placeholder row. */
+    minCells: number;
+    descripcion: number;
+    tipoProcedimiento: number;
+    fechaApertura: number | null;
+    estado: number | null;
+    organismo: number;
+}
+
+const GRID_SCHEMAS: Record<ViewName, GridColumnSchema> = {
+    apertura_proxima: { minCells: 6, descripcion: 1, tipoProcedimiento: 2, fechaApertura: 3, estado: 4, organismo: 5 },
+    ultimos_30_dias: { minCells: 6, descripcion: 1, tipoProcedimiento: 2, fechaApertura: 3, estado: 4, organismo: 5 },
+    adjudicados: { minCells: 4, descripcion: 1, tipoProcedimiento: 2, fechaApertura: null, estado: null, organismo: 3 },
+};
+
 // Extracts the __doPostBack control id from a link like:
 // href="javascript:__doPostBack('ctl00$CPH1$...$lnkNumeroProceso','')"
 function extractPostbackTarget(href: string | undefined): string | null {
@@ -36,11 +67,12 @@ export function isGridRendered($: CheerioAPI, view: ViewName): boolean {
 
 export function parseGrid($: CheerioAPI, view: ViewName): TenderRow[] {
     const tableId = GRID_IDS[view];
+    const schema = GRID_SCHEMAS[view];
     const rows: TenderRow[] = [];
 
     $(`#${tableId} tr`).each((_i, el) => {
         const cells = $(el).find('td');
-        if (cells.length < 6) return; // skip header/empty rows
+        if (cells.length < schema.minCells) return; // skip header/empty/"no results" rows
 
         const link = cells.eq(0).find('a').first();
         const controlId = extractPostbackTarget(link.attr('href'));
@@ -49,11 +81,11 @@ export function parseGrid($: CheerioAPI, view: ViewName): TenderRow[] {
 
         rows.push({
             numeroProceso,
-            descripcion: cells.eq(1).text().trim(),
-            tipoProcedimiento: cells.eq(2).text().trim(),
-            fechaApertura: cells.eq(3).text().trim(),
-            estado: cells.eq(4).text().trim(),
-            organismo: cells.eq(5).text().trim(),
+            descripcion: cells.eq(schema.descripcion).text().trim(),
+            tipoProcedimiento: cells.eq(schema.tipoProcedimiento).text().trim(),
+            fechaApertura: schema.fechaApertura !== null ? cells.eq(schema.fechaApertura).text().trim() : '',
+            estado: schema.estado !== null ? cells.eq(schema.estado).text().trim() : '',
+            organismo: cells.eq(schema.organismo).text().trim(),
             vistaOrigen: view,
             controlId,
         });

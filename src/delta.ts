@@ -105,8 +105,8 @@ export function findClosed(state: DeltaState, fetchedIds: ReadonlySet<string>, s
         closed.push({
             numeroProceso: recordId,
             descripcion: entry.descripcion,
-            tipoProcedimiento: '',
-            fechaApertura: '',
+            tipoProcedimiento: entry.tipoProcedimiento,
+            fechaApertura: entry.fechaApertura,
             estado: entry.estado,
             organismo: entry.organismo,
             vistaOrigen: entry.vistaOrigen as ViewName,

@@ -26,6 +26,19 @@ function stateWith(entries: Record<string, SeenEntry>): DeltaState {
     return { entries, lastRunAt: '' };
 }
 
+function seenEntry(overrides: Partial<SeenEntry> = {}): SeenEntry {
+    return {
+        vistaOrigen: 'apertura_proxima',
+        estado: 'Publicado',
+        hash: 'h',
+        descripcion: 'd',
+        organismo: 'o',
+        tipoProcedimiento: 't',
+        fechaApertura: 'f',
+        ...overrides,
+    };
+}
+
 describe('classifyRows', () => {
     it('classifies an unseen row as NEW_LISTING', () => {
         const [c] = classifyRows([row()], EMPTY_STATE);
@@ -37,7 +50,7 @@ describe('classifyRows', () => {
 
     it('classifies a known id with a different vistaOrigen as STATUS_CHANGE, with previousVistaOrigen set', () => {
         const target = row();
-        const state = stateWith({ [target.numeroProceso]: { vistaOrigen: 'apertura_proxima', estado: target.estado, hash: fingerprintOf(target), descripcion: 'd', organismo: 'o' } });
+        const state = stateWith({ [target.numeroProceso]: seenEntry({ vistaOrigen: 'apertura_proxima', estado: target.estado, hash: fingerprintOf(target) }) });
         const [c] = classifyRows([{ ...target, vistaOrigen: 'adjudicados' }], state);
 
         expect(c.eventType).toBe('STATUS_CHANGE');
@@ -47,7 +60,7 @@ describe('classifyRows', () => {
 
     it('classifies a known id with a different estado (same vistaOrigen) as STATUS_CHANGE, with previousEstado set', () => {
         const target = row();
-        const state = stateWith({ [target.numeroProceso]: { vistaOrigen: target.vistaOrigen, estado: 'stale-estado', hash: fingerprintOf(target), descripcion: 'd', organismo: 'o' } });
+        const state = stateWith({ [target.numeroProceso]: seenEntry({ vistaOrigen: target.vistaOrigen, estado: 'stale-estado', hash: fingerprintOf(target) }) });
         const [c] = classifyRows([target], state);
 
         expect(c.eventType).toBe('STATUS_CHANGE');
@@ -56,7 +69,7 @@ describe('classifyRows', () => {
 
     it('classifies a known id, same vistaOrigen/estado, different content fingerprint as UPDATED', () => {
         const target = row();
-        const state = stateWith({ [target.numeroProceso]: { vistaOrigen: target.vistaOrigen, estado: target.estado, hash: 'a-hash-that-will-never-match', descripcion: 'd', organismo: 'o' } });
+        const state = stateWith({ [target.numeroProceso]: seenEntry({ vistaOrigen: target.vistaOrigen, estado: target.estado, hash: 'a-hash-that-will-never-match' }) });
         const [c] = classifyRows([target], state);
 
         expect(c.eventType).toBe('UPDATED');
@@ -66,7 +79,7 @@ describe('classifyRows', () => {
 
     it('classifies a known id, nothing changed, as UNCHANGED', () => {
         const target = row();
-        const state = stateWith({ [target.numeroProceso]: { vistaOrigen: target.vistaOrigen, estado: target.estado, hash: fingerprintOf(target), descripcion: 'd', organismo: 'o' } });
+        const state = stateWith({ [target.numeroProceso]: seenEntry({ vistaOrigen: target.vistaOrigen, estado: target.estado, hash: fingerprintOf(target) }) });
         const [c] = classifyRows([target], state);
 
         expect(c.eventType).toBe('UNCHANGED');
@@ -108,8 +121,8 @@ describe('passesOnlyNew / passesEventTypes / passesDateRange', () => {
 describe('findClosed', () => {
     it('reports a previously-seen id absent from this run\'s fetched ids as CLOSED, carrying its last-known vistaOrigen/estado', () => {
         const state = stateWith({
-            stillHere: { vistaOrigen: 'apertura_proxima', estado: 'Publicado', hash: 'h1', descripcion: 'd1', organismo: 'o1' },
-            goneNow: { vistaOrigen: 'ultimos_30_dias', estado: 'Publicado', hash: 'h2', descripcion: 'd2', organismo: 'o2' },
+            stillHere: seenEntry({ vistaOrigen: 'apertura_proxima', estado: 'Publicado', hash: 'h1', descripcion: 'd1', organismo: 'o1' }),
+            goneNow: seenEntry({ vistaOrigen: 'ultimos_30_dias', estado: 'Publicado', hash: 'h2', descripcion: 'd2', organismo: 'o2' }),
         });
         const closed = findClosed(state, new Set(['stillHere']), '2026-09-08T00:00:00.000Z', SOURCE_URL);
 
@@ -120,8 +133,29 @@ describe('findClosed', () => {
         expect(closed[0].descripcion).toBe('d2');
     });
 
+    // Regression test for the bug where findClosed() hardcoded tipoProcedimiento/fechaApertura
+    // to '' on every synthesized CLOSED record, even though both were known from the tender's
+    // last real observation (SeenEntry now persists them - see src/state.ts).
+    it('carries the real last-known tipoProcedimiento/fechaApertura on a CLOSED record, not hardcoded empty strings', () => {
+        const state = stateWith({
+            goneNow: seenEntry({
+                vistaOrigen: 'ultimos_30_dias',
+                estado: 'Publicado',
+                hash: 'h2',
+                descripcion: 'd2',
+                organismo: 'o2',
+                tipoProcedimiento: 'Licitación Pública',
+                fechaApertura: '28/11/2025 13:00 Hrs.',
+            }),
+        });
+        const [closed] = findClosed(state, new Set(), '2026-09-08T00:00:00.000Z', SOURCE_URL);
+
+        expect(closed.tipoProcedimiento).toBe('Licitación Pública');
+        expect(closed.fechaApertura).toBe('28/11/2025 13:00 Hrs.');
+    });
+
     it('reports nothing closed when every previously-seen id is still present', () => {
-        const state = stateWith({ a: { vistaOrigen: 'apertura_proxima', estado: 'Publicado', hash: 'h', descripcion: 'd', organismo: 'o' } });
+        const state = stateWith({ a: seenEntry() });
         expect(findClosed(state, new Set(['a']), '2026-09-08T00:00:00.000Z', SOURCE_URL)).toHaveLength(0);
     });
 });

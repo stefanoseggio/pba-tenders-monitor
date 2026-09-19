@@ -165,6 +165,40 @@ v1-then-v2 sequence. New files: `src/state.ts`, `src/fingerprint.ts`,
 - New `onlyNew`/`eventTypes`/`dateRange` inputs, matching the fleet
   convention.
 
+## Fixed: adjudicados is a real 4-column grid, not the 6-column shape (2026-09-19)
+
+`parseGrid()` applied one hardcoded 6-column layout (and its `cells.length
+< 6` guard) to all three grids. `adjudicados` genuinely renders only 4
+columns - re-verified live against `https://pbac.cgp.gba.gov.ar/` on
+2026-09-19, whose `gridPliegosAdjudicados` header row reads exactly:
+"Número de Proceso", "Nombre de Proceso", "Tipo de Proceso", "Unidad
+Ejecutora" (no Fecha de Apertura/Estado). Every real adjudicados row was
+therefore silently discarded (`cells.length` was 4, always < 6), so an
+awarded tender read as CLOSED (absent from every grid) instead of the
+real STATUS_CHANGE it is - the vistaOrigen-move signal this file's own
+"Three grids, three vistas" note above describes as the domain's clearest
+lifecycle signal was never actually reachable for adjudicados. Fixed with
+a per-view `GRID_SCHEMAS` column map in `src/parsers/grid.ts`; a view
+with no Fecha de Apertura/Estado column now fills those `TenderRow`
+fields with `''` rather than guessing.
+
+`src/state.ts`'s `SeenEntry` also now persists `tipoProcedimiento`/
+`fechaApertura` (both already parsed on every walked row, so this is
+free) so `src/delta.ts`'s `findClosed()` can carry the tender's real
+last-known values on a synthesized CLOSED record instead of the two
+hardcoded `''` it used before - a CLOSED record was missing exactly the
+two fields a consumer would need to identify what closed.
+
+**Still not live-verified**: an actual *populated* adjudicados row. The
+live grid was empty ("No se encontraron resultados") at verification
+time, and stayed empty in the two most recent Wayback Machine snapshots
+of the page (2025-12-19, 2025-12-21) - the closest available real
+adjudicados data is `ListarAperturaUltimos30Dias.aspx`-style rows from
+the sibling grids, not this one. `test/parsers/grid.test.ts`'s populated
+adjudicados fixture is hand-built to the confirmed-live schema, not a
+genuine live capture - re-verify field values (not just column count)
+against a real populated row the next time this file is touched.
+
 Cost consequence: residential proxy runs ~$7-8/GB vs. datacenter being
 effectively free on this plan. Pages here are ~50-90KB, so proxy cost is
 roughly $0.35-0.70 per 1,000 requests - real but small. Factored into
