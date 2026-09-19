@@ -4,7 +4,7 @@ import { mergeEntries } from '../src/state.js';
 import type { SeenEntry } from '../src/state.js';
 
 function entry(vistaOrigen: string, estado = 'Publicado', hash = 'h'): SeenEntry {
-    return { vistaOrigen, estado, hash, descripcion: 'd', organismo: 'o' };
+    return { vistaOrigen, estado, hash, descripcion: 'd', organismo: 'o', tipoProcedimiento: 't', fechaApertura: 'f' };
 }
 
 describe('mergeEntries', () => {

@@ -8,16 +8,23 @@ const STATE_STORE_NAME = 'pba-tenders-monitor-delta-state';
 const MAX_SEEN_IDS = 3000;
 
 /** Last-known vistaOrigen (which of the 3 grids this tender was in), estado text, and content
- *  fingerprint per numeroProceso - all three come from the already-parsed grid row, zero extra
- *  request. vistaOrigen moving (e.g. apertura_proxima -> adjudicados) is this domain's clearest
- *  real lifecycle signal - a tender being awarded - so it is tracked and compared exactly like
- *  estado, not folded silently into the generic content fingerprint. */
+ *  fingerprint per numeroProceso - all from the already-parsed grid row, zero extra request.
+ *  vistaOrigen moving (e.g. apertura_proxima -> adjudicados) is this domain's clearest real
+ *  lifecycle signal - a tender being awarded - so it is tracked and compared exactly like
+ *  estado, not folded silently into the generic content fingerprint.
+ *
+ *  tipoProcedimiento/fechaApertura are persisted too (parsed on every walked row regardless, so
+ *  this is free) purely so src/delta.ts's findClosed() can carry a CLOSED record's real
+ *  last-known values instead of hardcoding them empty - synthesizing a CLOSED record has no new
+ *  fetch to read them from, only this stored state. */
 export interface SeenEntry {
     vistaOrigen: string;
     estado: string;
     hash: string;
     descripcion: string;
     organismo: string;
+    tipoProcedimiento: string;
+    fechaApertura: string;
 }
 
 export interface DeltaState {
