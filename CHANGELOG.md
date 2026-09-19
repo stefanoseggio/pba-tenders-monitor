@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.0.0](https://github.com/stefanoseggio/pba-tenders-monitor/compare/pba-tenders-monitor-v2.0.0...pba-tenders-monitor-v3.0.0) (2026-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* v2.0 delta engine - the first this actor has ever had
+
+### Features
+
+* v2.0 delta engine - the first this actor has ever had ([4600d01](https://github.com/stefanoseggio/pba-tenders-monitor/commit/4600d010f297627913de4b5ad163f486f0f0521d))
+
+
+### Bug Fixes
+
+* **ci:** pass RELEASE_PLEASE_TOKEN so release PRs skip the bot-approval gate ([b0a30dd](https://github.com/stefanoseggio/pba-tenders-monitor/commit/b0a30dd89b66a9229cf0e0042267df29cf210ed3))
+* guard CLOSED detection against a fetch that returns nothing real ([#9](https://github.com/stefanoseggio/pba-tenders-monitor/issues/9)) ([6697e9e](https://github.com/stefanoseggio/pba-tenders-monitor/commit/6697e9e778240c0d1aeba2d5d5abe50cd5fd3da2))
+* **main:** add required Apify Proxy - PBAC blocks Apify's cloud IPs ([a40dd7c](https://github.com/stefanoseggio/pba-tenders-monitor/commit/a40dd7c311664185c4bb315621e63e1f73d3c1f3))
+* **main:** default to Residential+Argentina proxy in code, not just the form ([e4c1a02](https://github.com/stefanoseggio/pba-tenders-monitor/commit/e4c1a02d8b92041b7fefbb3303ad19bb1e2e23d0))
+* **test:** skip the live PBAC integration test in CI ([6688299](https://github.com/stefanoseggio/pba-tenders-monitor/commit/6688299a801220e3b9b51cb9664a5031ef9e2007))
+
 ## 2.0.0 - 2026-09-08
 
 The first delta engine this actor has ever had, built directly to this fleet's v2 standard (unlike every sibling actor, which went through a v1 retrofit first) - status-change, amendment and closure detection. See AGENTS.md "Delta engine v2" for the full technical reasoning.
