@@ -21,6 +21,19 @@ function extractPostbackTarget(href: string | undefined): string | null {
     return match ? match[1] : null;
 }
 
+/**
+ * Whether `view`'s grid table element itself is present in the parsed HTML - true even when it
+ * has zero data rows (PBAC still renders the empty `<table>` with just its header row on a
+ * genuinely quiet day). False means the page didn't render this grid at all: a redirect to an
+ * unrelated/error page, a bot-check interstitial, or an unannounced markup change. That's a
+ * materially different failure mode from "the grid rendered and is genuinely empty today", and
+ * `parseGrid` returning 0 rows can't tell the two apart on its own - see src/main.ts's
+ * mass-closure guard, which needs exactly that distinction before trusting a 0-row reading.
+ */
+export function isGridRendered($: CheerioAPI, view: ViewName): boolean {
+    return $(`#${GRID_IDS[view]}`).length > 0;
+}
+
 export function parseGrid($: CheerioAPI, view: ViewName): TenderRow[] {
     const tableId = GRID_IDS[view];
     const rows: TenderRow[] = [];
