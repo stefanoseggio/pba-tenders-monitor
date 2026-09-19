@@ -1,8 +1,8 @@
 import { Actor, log } from 'apify';
 import { CheerioCrawler } from 'crawlee';
 
-import { findClosed } from './delta.js';
-import { configureDelta, getFetchedIdsThisRun, getObservedThisRun, router } from './routes.js';
+import { findClosed, isSuspectedFetchFailure } from './delta.js';
+import { configureDelta, getFetchedIdsThisRun, getObservedThisRun, getRenderedGridsThisRun, router } from './routes.js';
 import { loadState, mergeEntries, saveState } from './state.js';
 import type { ActorInput, ViewName } from './types.js';
 
@@ -86,8 +86,29 @@ async function run(): Promise<void> {
     // gets PUSHED, in routes.ts, never what's fetched) - see AGENTS.md "Delta engine v2".
     const isFullSiteQuery = ALL_VIEWS.every((v) => views.includes(v)) && views.length === ALL_VIEWS.length;
     const closedAllowed = !eventTypes || eventTypes.includes('CLOSED');
+    const previousTrackedCount = Object.keys(state.entries).length;
+    const fetchedCount = getFetchedIdsThisRun().size;
+    const requestedGridsRendered = views.every((v) => getRenderedGridsThisRun().has(v));
+    const suspectedFetchFailure = isSuspectedFetchFailure({ fetchedCount, previousTrackedCount, requestedGridsRendered });
+
+    // Sanity guard: a HOME request that "succeeds" (200, no thrown error) but returns a
+    // bot-check page, a redirect, or an empty/mis-rendered shell looks identical to a real
+    // "nothing in any grid today" from here on down. Unguarded, findClosed() below would read
+    // every previously-tracked id as CLOSED and both flood the dataset with false closure
+    // events and permanently wipe them from state in this same run. See delta.ts's
+    // isSuspectedFetchFailure() for the exact two signals this checks.
+    if (suspectedFetchFailure) {
+        log.error(
+            `Suspected fetch failure, not a real mass closure - skipping CLOSED detection and leaving ${previousTrackedCount} ` +
+                `previously-tracked record(s) untouched in state so a future good run can still detect a real closure. ` +
+                `Fetched ${fetchedCount} id(s) across ${views.length} requested view(s); grids rendered: ${requestedGridsRendered}.`,
+        );
+    }
+
     let closedCount = 0;
-    if (isFullSiteQuery && closedAllowed) {
+    if (suspectedFetchFailure) {
+        // Already logged above - deliberately not falling into the isFullSiteQuery branch below.
+    } else if (isFullSiteQuery && closedAllowed) {
         const closed = findClosed(state, getFetchedIdsThisRun(), scrapedAt, PBAC_URL);
         const pushedClosedIds: string[] = [];
         for (const record of closed) {

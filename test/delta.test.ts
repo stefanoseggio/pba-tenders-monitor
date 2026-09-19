@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { classifyRows, findClosed, passesDateRange, passesEventTypes, passesOnlyNew } from '../src/delta.js';
+import { classifyRows, findClosed, isSuspectedFetchFailure, passesDateRange, passesEventTypes, passesOnlyNew } from '../src/delta.js';
 import { fingerprintOf } from '../src/fingerprint.js';
 import type { DeltaState, SeenEntry } from '../src/state.js';
 import type { TenderRow } from '../src/types.js';
@@ -123,5 +123,35 @@ describe('findClosed', () => {
     it('reports nothing closed when every previously-seen id is still present', () => {
         const state = stateWith({ a: { vistaOrigen: 'apertura_proxima', estado: 'Publicado', hash: 'h', descripcion: 'd', organismo: 'o' } });
         expect(findClosed(state, new Set(['a']), '2026-09-08T00:00:00.000Z', SOURCE_URL)).toHaveLength(0);
+    });
+});
+
+describe('isSuspectedFetchFailure', () => {
+    // The exact bug this guards: a HOME request that returns 200 but a bot-check page, a
+    // redirect, or an empty/mis-rendered shell parses to 0 rows just like a real "nothing open
+    // today" would - and without this guard, main.ts would feed that straight into findClosed()
+    // and read every one of the previously-tracked records as CLOSED in the same run.
+    it('flags a fetch that found nothing at all while real entries were already tracked', () => {
+        expect(isSuspectedFetchFailure({ fetchedCount: 0, previousTrackedCount: 137, requestedGridsRendered: true })).toBe(true);
+    });
+
+    it('flags a fetch even with a nonzero fetchedCount if one of the requested grids never rendered (structural failure)', () => {
+        expect(isSuspectedFetchFailure({ fetchedCount: 12, previousTrackedCount: 137, requestedGridsRendered: false })).toBe(true);
+    });
+
+    it('flags a structurally broken page even on a brand-new actor with no prior state', () => {
+        expect(isSuspectedFetchFailure({ fetchedCount: 0, previousTrackedCount: 0, requestedGridsRendered: false })).toBe(true);
+    });
+
+    it('does not flag a real empty result on a brand-new actor (nothing tracked yet to protect)', () => {
+        expect(isSuspectedFetchFailure({ fetchedCount: 0, previousTrackedCount: 0, requestedGridsRendered: true })).toBe(false);
+    });
+
+    it('does not flag a normal run that found real, if fewer, rows with the grids intact', () => {
+        expect(isSuspectedFetchFailure({ fetchedCount: 40, previousTrackedCount: 137, requestedGridsRendered: true })).toBe(false);
+    });
+
+    it('does not flag a fully healthy run', () => {
+        expect(isSuspectedFetchFailure({ fetchedCount: 150, previousTrackedCount: 137, requestedGridsRendered: true })).toBe(false);
     });
 });

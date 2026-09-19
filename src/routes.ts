@@ -5,7 +5,7 @@ import type { DateRangePreset } from './dateFilter.js';
 import type { Classified } from './delta.js';
 import { classifyRows, passesDateRange, passesEventTypes, passesOnlyNew } from './delta.js';
 import { parseDetail } from './parsers/detail.js';
-import { parseGrid } from './parsers/grid.js';
+import { isGridRendered, parseGrid } from './parsers/grid.js';
 import { buildDetailPayload, extractPostbackFields } from './parsers/postback.js';
 import type { DeltaState, SeenEntry } from './state.js';
 import type { EventType, TenderRecord, TenderRow, ViewName } from './types.js';
@@ -32,11 +32,16 @@ export interface DeltaOptions {
 let deltaOptions: DeltaOptions | null = null;
 const observedThisRun: { id: string; entry: SeenEntry }[] = [];
 const fetchedIdsThisRun = new Set<string>();
+// Which of the 3 grid tables actually rendered on the HOME response this run - distinct from
+// fetchedIdsThisRun being non-empty, since a grid can legitimately render with zero data rows.
+// See parseGrid's isGridRendered() and main.ts's mass-closure guard.
+const renderedGridsThisRun = new Set<ViewName>();
 
 export function configureDelta(options: DeltaOptions): void {
     deltaOptions = options;
     observedThisRun.length = 0;
     fetchedIdsThisRun.clear();
+    renderedGridsThisRun.clear();
 }
 
 export function getObservedThisRun(): { id: string; entry: SeenEntry }[] {
@@ -45,6 +50,10 @@ export function getObservedThisRun(): { id: string; entry: SeenEntry }[] {
 
 export function getFetchedIdsThisRun(): ReadonlySet<string> {
     return fetchedIdsThisRun;
+}
+
+export function getRenderedGridsThisRun(): ReadonlySet<ViewName> {
+    return renderedGridsThisRun;
 }
 
 function toEntry(row: TenderRow, hash: string): SeenEntry {
@@ -113,7 +122,10 @@ router.addDefaultHandler(async ({ $, request, response, crawler, log, addRequest
     const maxItems = typeof userData.maxItems === 'number' ? userData.maxItems : 200;
 
     const allRows: TenderRow[] = [];
-    for (const view of views) allRows.push(...parseGrid($, view));
+    for (const view of views) {
+        if (isGridRendered($, view)) renderedGridsThisRun.add(view);
+        allRows.push(...parseGrid($, view));
+    }
     for (const row of allRows) fetchedIdsThisRun.add(row.numeroProceso);
 
     const rows = allRows.slice(0, maxItems);
