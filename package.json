@@ -1,6 +1,6 @@
 {
   "name": "pba-tenders-monitor",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "description": "PBA Tenders Monitor: extracts public tender listings (apertura proxima, ultimos 30 dias, adjudicados) from Buenos Aires Province's PBAC procurement portal, with optional full-detail enrichment.",
   "engines": {
